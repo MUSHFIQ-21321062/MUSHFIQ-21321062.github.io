@@ -129,6 +129,10 @@ h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; line
 .msg label { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 6px; }
 .msg input, .msg textarea { width: 100%; font: 400 16px/1.5 var(--font-body); color: var(--fg); background: var(--scope); border: 1px solid var(--rule); border-radius: 4px; padding: 11px 12px; resize: vertical; }
 .msg input:focus, .msg textarea:focus { outline: 2px solid var(--phosphor); outline-offset: 1px; border-color: var(--phosphor); }
+.msg select { width: 100%; font: 400 16px/1.5 var(--font-body); color: var(--fg); background: var(--scope); border: 1px solid var(--rule); border-radius: 4px; padding: 11px 12px; }
+.msg select:focus { outline: 2px solid var(--phosphor); outline-offset: 1px; border-color: var(--phosphor); }
+.msg input[type="file"] { font-size: 14px; color: var(--muted); padding: 9px 10px; }
+.msg input[type="file"]::file-selector-button { font: 500 13px var(--font-mono); background: transparent; color: var(--phosphor); border: 1px solid var(--phosphor); border-radius: 3px; padding: 6px 10px; margin-right: 10px; cursor: pointer; }
 .msg .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .msg .btn { justify-self: start; margin-top: 10px; }
 .msg .status { margin: 6px 0 0; min-height: 1.5em; font-size: 15px; color: var(--muted); }
@@ -274,8 +278,21 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
       <input id="f-name" name="name" type="text" autocomplete="name" required>
       <label for="f-email">Your email</label>
       <input id="f-email" name="email" type="email" autocomplete="email" required>
+      <label for="f-topic">Topic you are interested in</label>
+      <select id="f-topic" name="topic">
+        <option>Machine Learning</option>
+        <option>AI</option>
+        <option>Power Electronics</option>
+        <option>Renewable Energy</option>
+        <option>Embedded Systems</option>
+        <option>Research collaboration</option>
+        <option>Job or PhD opportunity</option>
+        <option>Other</option>
+      </select>
       <label for="f-msg">Message</label>
       <textarea id="f-msg" name="message" rows="5" required></textarea>
+      <label for="f-file">Attach a document (optional, up to 5 MB)</label>
+      <input id="f-file" name="attachment" type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg">
       <input class="hp" id="f-hp" name="_gotcha" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
       <button class="btn" type="submit" id="f-send">Send message</button>
       <p class="status" id="f-status" role="status" aria-live="polite"></p>
@@ -315,10 +332,17 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     var message = form.elements.message.value.trim();
     if (form.elements._gotcha.value) return;
     if (!name || !message || !/^\S+@\S+\.\S+$/.test(email)) { say('Please add your name, a valid email and a message.', 'err'); return; }
+    var fileEl = form.elements.attachment;
+    var file = fileEl && fileEl.files && fileEl.files[0];
+    if (file && file.size > 5 * 1024 * 1024) { say('The file is larger than 5 MB. Please choose a smaller file.', 'err'); return; }
+    var topic = form.elements.topic.value;
+    var data = new FormData();
+    data.append('name', name); data.append('email', email); data.append('topic', topic); data.append('message', message);
+    data.append('_subject', 'New message (' + topic + ') from ' + name + ' via your website');
+    data.append('_replyto', email); data.append('_template', 'table');
+    if (file) data.append('attachment', file);
     fSend.disabled = true; say('Sending...');
-    fetch(FORM_ENDPOINT, {
-      method: 'POST', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, email: email, message: message, _subject: 'New message from ' + name + ' via your website', _replyto: email })
+    fetch(FORM_ENDPOINT, { method: 'POST', headers: { 'Accept': 'application/json' }, body: data
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (d) {
         if (!r.ok || d.success === false || d.success === 'false') throw new Error('bad');
