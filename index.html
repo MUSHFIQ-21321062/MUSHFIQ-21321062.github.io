@@ -133,6 +133,11 @@ h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.4rem; line
 .msg select:focus { outline: 2px solid var(--phosphor); outline-offset: 1px; border-color: var(--phosphor); }
 .msg input[type="file"] { font-size: 14px; color: var(--muted); padding: 9px 10px; }
 .msg input[type="file"]::file-selector-button { font: 500 13px var(--font-mono); background: transparent; color: var(--phosphor); border: 1px solid var(--phosphor); border-radius: 3px; padding: 6px 10px; margin-right: 10px; cursor: pointer; }
+.flist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.flist li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 4px; background: var(--scope); font-size: 14px; }
+.flist .fn { min-width: 0; overflow-wrap: anywhere; }
+.flist .fn small { color: var(--muted); font-family: var(--font-mono); margin-left: 8px; }
+.flist button { flex: none; font: 500 12px var(--font-mono); background: transparent; color: var(--amber); border: 1px solid var(--amber); border-radius: 3px; padding: 5px 9px; cursor: pointer; }
 .msg .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .msg .btn { justify-self: start; margin-top: 10px; }
 .msg .status { margin: 6px 0 0; min-height: 1.5em; font-size: 15px; color: var(--muted); }
@@ -163,7 +168,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     <div class="intro">
       <p class="role">PhD Candidate · Electrical &amp; Electronic Engineer</p>
       <h1>Electrons in.<br><span>Intelligence out.</span></h1>
-      <p class="lede">I'm Md. Mushfiq Us Salehin from Cumilla, Bangladesh. I work on the path from clean energy to smart decisions, using hardware, power electronics and machine learning.</p>
+      <p class="lede">I'm Md. Mushfiq Us Salehin from Bangladesh. I work on the path from clean energy to smart decisions, using hardware, power electronics and machine learning.</p>
       <ul class="tags">
         <li>Machine Learning</li><li>AI</li><li>Power Electronics</li><li>Renewable Energy</li><li>Embedded Systems</li>
       </ul>
@@ -240,7 +245,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     <h2>Engineer, mentor, still curious</h2>
     <div class="about">
       <div>
-        <p>I grew up in Cumilla and studied Electrical and Electronic Engineering at BRAC University in Dhaka, graduating in October 2025. The more I learned, the more I wanted to work where power, hardware and intelligence meet: machines that look after themselves, and grids that flag their own faults.</p>
+        <p>I grew up in Bangladesh and studied Electrical and Electronic Engineering at BRAC University in Dhaka, graduating in October 2025. The more I learned, the more I wanted to work where power, hardware and intelligence meet: machines that look after themselves, and grids that flag their own faults.</p>
         <p>I enjoy teaching as much as building. I worked as an undergraduate teaching assistant for two years, mentored project teams at the IEEE Student Branch, and visited rural schools to talk about engineering.</p>
       </div>
       <aside class="side">
@@ -249,7 +254,6 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
           <li><b>Team lead</b> at the Smart Systems Design Lab, guiding agri-health prototypes</li>
           <li><b>Mentor</b> at the IEEE Student Branch</li>
           <li><b>STEM outreach</b> in rural schools</li>
-          <li><b>Scholar</b> on a BRAC University scholarship, 2021 – 2025</li>
         </ul>
       </aside>
     </div>
@@ -289,8 +293,9 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
       </select>
       <label for="f-msg">Message</label>
       <textarea id="f-msg" name="message" rows="5" required></textarea>
-      <label for="f-file">Attach a document (optional, up to 5 MB)</label>
-      <input id="f-file" name="attachment" type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg">
+      <label for="f-file">Add documents (optional, up to 10 files, 100 MB each)</label>
+      <input id="f-file" name="attachment" type="file" multiple accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg">
+      <ul class="flist" id="f-list" aria-live="polite"></ul>
       <input class="hp" id="f-hp" name="_gotcha" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
       <button class="btn" type="submit" id="f-send">Send message</button>
       <p class="status" id="f-status" role="status" aria-live="polite"></p>
@@ -323,6 +328,34 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
   var fStatus = document.getElementById('f-status');
   var fSend = document.getElementById('f-send');
   function say(text, cls) { fStatus.textContent = text; fStatus.className = 'status' + (cls ? ' ' + cls : ''); }
+  var picked = [];
+  var fInput = document.getElementById('f-file');
+  var fList = document.getElementById('f-list');
+  function size(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function renderList() {
+    fList.innerHTML = '';
+    picked.forEach(function (f, i) {
+      var li = document.createElement('li');
+      var span = document.createElement('span'); span.className = 'fn';
+      span.appendChild(document.createTextNode(f.name));
+      var sm = document.createElement('small'); sm.textContent = size(f.size); span.appendChild(sm);
+      var rm = document.createElement('button'); rm.type = 'button'; rm.textContent = 'Remove';
+      rm.setAttribute('aria-label', 'Remove ' + f.name);
+      rm.addEventListener('click', function () { picked.splice(i, 1); renderList(); say(''); });
+      li.appendChild(span); li.appendChild(rm); fList.appendChild(li);
+    });
+  }
+  fInput.addEventListener('change', function () {
+    var msg = '';
+    Array.prototype.slice.call(fInput.files).forEach(function (f) {
+      if (picked.length >= 10) { msg = 'You can add up to 10 files. Remove one to add another.'; return; }
+      if (f.size > 100 * 1024 * 1024) { msg = f.name + ' is larger than 100 MB, so it was not added.'; return; }
+      picked.push(f);
+    });
+    fInput.value = '';
+    renderList();
+    say(msg, msg ? 'err' : '');
+  });
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var name = form.elements.name.value.trim();
@@ -330,21 +363,19 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     var message = form.elements.message.value.trim();
     if (form.elements._gotcha.value) return;
     if (!name || !message || !/^\S+@\S+\.\S+$/.test(email)) { say('Please add your name, a valid email and a message.', 'err'); return; }
-    var fileEl = form.elements.attachment;
-    var file = fileEl && fileEl.files && fileEl.files[0];
-    if (file && file.size > 5 * 1024 * 1024) { say('The file is larger than 5 MB. Please choose a smaller file.', 'err'); return; }
+    var files = picked.slice();
     var topic = form.elements.topic.value;
     var data = new FormData();
     data.append('name', name); data.append('email', email); data.append('topic', topic); data.append('message', message);
     data.append('_subject', 'New message (' + topic + ') from ' + name + ' via your website');
     data.append('_replyto', email); data.append('_template', 'table');
-    if (file) data.append('attachment', file);
+    files.forEach(function (f) { data.append('attachment', f); });
     fSend.disabled = true; say('Sending...');
     fetch(FORM_ENDPOINT, { method: 'POST', headers: { 'Accept': 'application/json' }, body: data
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (d) {
         if (!r.ok || d.success === false || d.success === 'false') throw new Error('bad');
-        form.reset(); say('Message sent. Thank you!', 'ok');
+        form.reset(); picked = []; renderList(); say('Message sent. Thank you!', 'ok');
       });
     }).catch(function () {
       say('The message could not be sent. Please email ' + MY_EMAIL + ' directly.', 'err');
