@@ -293,7 +293,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
       </select>
       <label for="f-msg">Message</label>
       <textarea id="f-msg" name="message" rows="5" required></textarea>
-      <label for="f-file">Add documents (optional, up to 10 files, 100 MB each)</label>
+      <label for="f-file">Add documents (optional, up to 10 files, 5 MB in total)</label>
       <input id="f-file" name="attachment" type="file" multiple accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg">
       <ul class="flist" id="f-list" aria-live="polite"></ul>
       <input class="hp" id="f-hp" name="_gotcha" type="text" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -323,6 +323,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
 
   /* Message form: sends straight to the owner's inbox through FormSubmit. */
   var FORM_ENDPOINT = 'https://formsubmit.co/ajax/mushfiqussalehin512001@gmail.com';
+  var FORM_POST = 'https://formsubmit.co/mushfiqussalehin512001@gmail.com';
   var MY_EMAIL = 'mushfiqussalehin512001@gmail.com';
   var form = document.getElementById('msg');
   var fStatus = document.getElementById('f-status');
@@ -349,7 +350,8 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     var msg = '';
     Array.prototype.slice.call(fInput.files).forEach(function (f) {
       if (picked.length >= 10) { msg = 'You can add up to 10 files. Remove one to add another.'; return; }
-      if (f.size > 100 * 1024 * 1024) { msg = f.name + ' is larger than 100 MB, so it was not added.'; return; }
+      var total = picked.reduce(function (n, p) { return n + p.size; }, 0);
+      if (total + f.size > 5 * 1024 * 1024) { msg = f.name + ' was not added. The files together can be at most 5 MB.'; return; }
       picked.push(f);
     });
     fInput.value = '';
@@ -365,21 +367,45 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     if (!name || !message || !/^\S+@\S+\.\S+$/.test(email)) { say('Please add your name, a valid email and a message.', 'err'); return; }
     var files = picked.slice();
     var topic = form.elements.topic.value;
-    var data = new FormData();
-    data.append('name', name); data.append('email', email); data.append('topic', topic); data.append('message', message);
-    data.append('_subject', 'New message (' + topic + ') from ' + name + ' via your website');
-    data.append('_replyto', email); data.append('_template', 'table');
-    files.forEach(function (f) { data.append('attachment', f); });
+    var subject = 'New message (' + topic + ') from ' + name + ' via your website';
     fSend.disabled = true; say('Sending...');
-    fetch(FORM_ENDPOINT, { method: 'POST', headers: { 'Accept': 'application/json' }, body: data
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (d) {
-        if (!r.ok || d.success === false || d.success === 'false') throw new Error('bad');
-        form.reset(); picked = []; renderList(); say('Message sent. Thank you!', 'ok');
-      });
-    }).catch(function () {
-      say('The message could not be sent. Please email ' + MY_EMAIL + ' directly.', 'err');
-    }).then(function () { fSend.disabled = false; });
+    function ok() { form.reset(); picked = []; renderList(); say('Message sent. Thank you!', 'ok'); fSend.disabled = false; }
+    function bad() { say('The message could not be sent. Please email ' + MY_EMAIL + ' directly.', 'err'); fSend.disabled = false; }
+
+    if (!files.length) {
+      var data = new FormData();
+      data.append('name', name); data.append('email', email); data.append('topic', topic); data.append('message', message);
+      data.append('_subject', subject); data.append('_replyto', email); data.append('_template', 'table');
+      fetch(FORM_ENDPOINT, { method: 'POST', headers: { 'Accept': 'application/json' }, body: data })
+        .then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (d) {
+            if (!r.ok || d.success === false || d.success === 'false') throw new Error('bad');
+            ok();
+          });
+        }).catch(bad);
+      return;
+    }
+
+    /* With documents attached, send a normal multipart form into a hidden frame so the files travel as real attachments. */
+    try {
+      var dt = new DataTransfer();
+      files.forEach(function (f) { dt.items.add(f); });
+      var frame = document.createElement('iframe');
+      frame.name = 'fs-' + Date.now(); frame.hidden = true; frame.setAttribute('aria-hidden', 'true'); frame.title = 'Sending';
+      var post = document.createElement('form');
+      post.method = 'POST'; post.action = FORM_POST; post.enctype = 'multipart/form-data'; post.target = frame.name; post.hidden = true;
+      function field(n, v) { var i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; post.appendChild(i); }
+      field('name', name); field('email', email); field('topic', topic); field('message', message);
+      field('_subject', subject); field('_replyto', email); field('_template', 'table'); field('_captcha', 'false');
+      var fi = document.createElement('input'); fi.type = 'file'; fi.name = 'attachment'; fi.multiple = true; fi.files = dt.files;
+      post.appendChild(fi);
+      var started = false, finished = false;
+      function end(good) { if (finished) return; finished = true; clearTimeout(timer); setTimeout(function () { frame.remove(); post.remove(); }, 500); good ? ok() : bad(); }
+      var timer = setTimeout(function () { end(false); }, 90000);
+      frame.addEventListener('load', function () { if (started) end(true); });
+      document.body.appendChild(frame); document.body.appendChild(post);
+      started = true; post.submit();
+    } catch (err) { bad(); }
   });
 })();
 </script>
