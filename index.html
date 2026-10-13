@@ -245,7 +245,6 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     <p>If you have a role, a research idea or a project in ML, AI, power electronics, renewable energy or embedded systems, I'd like to hear about it.</p>
     <div class="reach">
       <div class="mail"><small>Email</small><code>mushfiqussalehin512001@gmail.com</code><button class="btn ghost copy" type="button" data-copy="mushfiqussalehin512001@gmail.com">Copy</button></div>
-      <div class="mail"><small>University email</small><code>mushfiq.us.salehin@g.bracu.ac.bd</code><button class="btn ghost copy" type="button" data-copy="mushfiq.us.salehin@g.bracu.ac.bd">Copy</button></div>
       <div class="mail"><small>Mobile</small><code>+880 1843 690800</code><button class="btn ghost copy" type="button" data-copy="+8801843690800">Copy</button></div>
     </div>
     <div class="links">
@@ -286,9 +285,8 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     });
   });
 
-  /* Message form. Paste your Formspree address below to receive messages directly,
-     for example 'https://formspree.io/f/abcdwxyz'. Left empty, the form opens the visitor's email app instead. */
-  var FORM_ENDPOINT = '';
+  /* Message form: sends straight to the owner's inbox through FormSubmit. */
+  var FORM_ENDPOINT = 'https://formsubmit.co/ajax/mushfiqussalehin512001@gmail.com';
   var MY_EMAIL = 'mushfiqussalehin512001@gmail.com';
   var form = document.getElementById('msg');
   var fStatus = document.getElementById('f-status');
@@ -301,22 +299,18 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     var message = form.elements.message.value.trim();
     if (form.elements._gotcha.value) return;
     if (!name || !message || !/^\S+@\S+\.\S+$/.test(email)) { say('Please add your name, a valid email and a message.', 'err'); return; }
-    if (FORM_ENDPOINT) {
-      fSend.disabled = true; say('Sending...');
-      fetch(FORM_ENDPOINT, {
-        method: 'POST', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name, email: email, message: message })
-      }).then(function (r) {
-        if (!r.ok) throw new Error('bad');
-        form.reset(); say('Thank you. Your message was sent and I will reply by email.', 'ok');
-      }).catch(function () {
-        say('The message could not be sent. Please email me directly at ' + MY_EMAIL + '.', 'err');
-      }).then(function () { fSend.disabled = false; });
-    } else {
-      var body = message + '\n\nFrom: ' + name + ' (' + email + ')';
-      window.location.href = 'mailto:' + MY_EMAIL + '?subject=' + encodeURIComponent('Message from ' + name + ' via your website') + '&body=' + encodeURIComponent(body);
-      say('Your email app should open with the message ready to send. If nothing opens, email ' + MY_EMAIL + ' directly.', 'ok');
-    }
+    fSend.disabled = true; say('Sending...');
+    fetch(FORM_ENDPOINT, {
+      method: 'POST', headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, email: email, message: message, _subject: 'New message from ' + name + ' via your website', _replyto: email })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok || d.success === false || d.success === 'false') throw new Error('bad');
+        form.reset(); say('Message sent. Thank you!', 'ok');
+      });
+    }).catch(function () {
+      say('The message could not be sent. Please email ' + MY_EMAIL + ' directly.', 'err');
+    }).then(function () { fSend.disabled = false; });
   });
 })();
 </script>
