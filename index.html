@@ -319,7 +319,17 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
   /* Message form: sends straight to the owner's inbox through FormSubmit. */
   var FORM_ENDPOINT = 'https://formsubmit.co/ajax/mushfiqussalehin512001@gmail.com';
   var FORM_POST = 'https://formsubmit.co/mushfiqussalehin512001@gmail.com';
-  var AUTO_REPLY = 'Thank you for your message. I will reply to your message as soon as possible. - Mushfiq Us Salehin';
+  /* Thank-you email to the visitor, sent from the owner's Gmail through EmailJS. */
+  var EMAILJS = { service: 'service_ba5xj8k', template: 'template_a83c6gg', key: 'DZJSY9uA6RfBXfPkh' };
+  function thankYou(name, email) {
+    try {
+      fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service_id: EMAILJS.service, template_id: EMAILJS.template, user_id: EMAILJS.key,
+          template_params: { name: name, email: email, to_email: email } })
+      }).catch(function () {});
+    } catch (e) {}
+  }
   var MY_EMAIL = 'mushfiqussalehin512001@gmail.com';
   var form = document.getElementById('msg');
   var fStatus = document.getElementById('f-status');
@@ -365,13 +375,13 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
     var topic = form.elements.topic.value;
     var subject = 'New message (' + topic + ') from ' + name + ' via your website';
     fSend.disabled = true; say('Sending...');
-    function ok() { form.reset(); picked = []; renderList(); say('Message sent. Thank you!', 'ok'); fSend.disabled = false; }
+    function ok() { thankYou(name, email); form.reset(); picked = []; renderList(); say('Message sent. Thank you!', 'ok'); fSend.disabled = false; }
     function bad() { say('The message could not be sent. Please email ' + MY_EMAIL + ' directly.', 'err'); fSend.disabled = false; }
 
     if (!files.length) {
       var data = new FormData();
       data.append('name', name); data.append('email', email); data.append('topic', topic); data.append('message', message);
-      data.append('_subject', subject); data.append('_replyto', email); data.append('_template', 'table'); data.append('_autoresponse', AUTO_REPLY);
+      data.append('_subject', subject); data.append('_replyto', email); data.append('_template', 'table');
       fetch(FORM_ENDPOINT, { method: 'POST', headers: { 'Accept': 'application/json' }, body: data })
         .then(function (r) {
           return r.json().catch(function () { return {}; }).then(function (d) {
@@ -392,7 +402,7 @@ footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--rule);
       post.method = 'POST'; post.action = FORM_POST; post.enctype = 'multipart/form-data'; post.target = frame.name; post.hidden = true;
       function field(n, v) { var i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; post.appendChild(i); }
       field('name', name); field('email', email); field('topic', topic); field('message', message);
-      field('_subject', subject); field('_replyto', email); field('_template', 'table'); field('_captcha', 'false'); field('_autoresponse', AUTO_REPLY);
+      field('_subject', subject); field('_replyto', email); field('_template', 'table'); field('_captcha', 'false');
       var fi = document.createElement('input'); fi.type = 'file'; fi.name = 'attachment'; fi.multiple = true; fi.files = dt.files;
       post.appendChild(fi);
       var started = false, finished = false;
